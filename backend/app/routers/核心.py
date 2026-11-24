@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from app.modules.金额容差策略 import 只读接口 as 容差裁决
 from app.services import 目录, 左装载, 右装载, 对齐, 结论, 夹具, 统计, 说明
 
 路由 = APIRouter()
@@ -13,7 +14,18 @@ def api_轨规():
 
 @路由.post("/api/轨规")
 def api_改轨规(体: dict):
-    return 目录.改轨规(体)
+    try:
+        return 目录.改轨规(体)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+@路由.get("/api/容差裁决")
+def api_容差裁决(业务键: str, 左金额分: int, 右金额分: int, 容差分: int | None = None):
+    """只读接口：给双边金额与容差分，返差型/贴边/valid/旁路凭证，不写库。"""
+    try:
+        return 容差裁决(业务键, 左金额分, 右金额分, 容差分)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 @路由.get("/api/源登记")
 def api_源():
@@ -51,19 +63,19 @@ def api_左装(体: dict):
 def api_右装(体: dict):
     return 右装载.装一批(体)
 
-@路由.post("/api/左轨/夹具/{名}")
-def api_左夹(名: str):
+@路由.post("/api/左轨/夹具/{name}")
+def api_左夹(name: str):
     try:
-        return 左装载.装一批(夹具.读取(名))
+        return 左装载.装一批(夹具.读取(name))
     except FileNotFoundError:
-        raise HTTPException(404, 名)
+        raise HTTPException(404, name)
 
-@路由.post("/api/右轨/夹具/{名}")
-def api_右夹(名: str):
+@路由.post("/api/右轨/夹具/{name}")
+def api_右夹(name: str):
     try:
-        return 右装载.装一批(夹具.读取(名))
+        return 右装载.装一批(夹具.读取(name))
     except FileNotFoundError:
-        raise HTTPException(404, 名)
+        raise HTTPException(404, name)
 
 @路由.post("/api/对齐/跑")
 def api_对齐():

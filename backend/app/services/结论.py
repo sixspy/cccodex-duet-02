@@ -15,7 +15,7 @@ def 跑一次() -> dict:
         差总 = conn.execute("SELECT COUNT(*) AS c FROM 对齐差").fetchone()["c"]
 
         问题 = []
-        # 悬账单业务键应能在对齐差找到左缺/右缺
+        # 悬账单业务键应能在对齐差找到左缺/右缺/金额不符；闭区间下对齐键不得有悬账
         for r in conn.execute("SELECT * FROM 悬账单").fetchall():
             行 = conn.execute(
                 "SELECT 差型 FROM 对齐差 WHERE 业务键=?", (r["业务键"],)
@@ -27,7 +27,14 @@ def 跑一次() -> dict:
             elif r["悬边"] == "右" and 行["差型"] not in ("左缺", "金额不符"):
                 问题.append(f"右悬{r['业务键']}差型={行['差型']}")
 
-        通过 = len(问题) == 0 and (左 + 右 == 0 or 差总 > 0 or (左 > 0 and 右 > 0 and 对齐 >= 0))
+        # 闭区间容差不变量：判对齐的键（含贴边）绝不进悬账
+        对齐有悬 = conn.execute(
+            """SELECT COUNT(*) AS c FROM 对齐差 d JOIN 悬账单 h ON d.业务键=h.业务键
+               WHERE d.差型='对齐'"""
+        ).fetchone()["c"]
+        if 对齐有悬:
+            问题.append(f"对齐键存在悬账{对齐有悬}笔，违反闭区间口径")
+
         if 左 == 0 and 右 == 0:
             通过 = True
             说明 = "双轨皆空，结论空跑通过"
@@ -35,6 +42,7 @@ def 跑一次() -> dict:
             通过 = False
             说明 = "问题:" + ";".join(问题[:6])
         else:
+            通过 = True
             说明 = f"左{左}/右{右}/对齐{对齐}/悬{悬}/差行{差总} 自洽"
 
         conn.execute(

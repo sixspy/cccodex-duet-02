@@ -37,12 +37,22 @@
           <pre class="报" id="报"></pre>
         </div>
         <div>
-          <h2>口径</h2>
+          <h2>口径（闭区间容差）</h2>
           <ul class="说明">
             <li>对齐键默认业务键；同键多笔先汇总再比。</li>
-            <li>容差分内算对齐，否则金额不符。</li>
-            <li>仅单边有键 → 对齐差记左缺/右缺，并写入悬账单。</li>
+            <li><b>闭区间</b>：|差额分| &lt; 容差分 → 对齐；|差额分| = 容差分（贴边）也判对齐，不进悬账、不写旁路凭证。</li>
+            <li>|差额分| &gt; 容差分 → 金额不符；仅单边有键 → 左缺/右缺并写悬账单。</li>
+            <li>保存容差若值变更，同事务作废旧对齐差与悬账单，需重跑对齐；与跑对齐互斥，不会新旧两套差并存。</li>
           </ul>
+          <h2>只读裁决试算</h2>
+          <div class="工具条">
+            <label>业务键 <input id="键" style="width:120px" value="TRY-1"/></label>
+            <label>左金额分 <input id="左" style="width:100px" value="1000"/></label>
+            <label>右金额分 <input id="右" style="width:100px" value="980"/></label>
+            <label>容差分（留空读轨规） <input id="容" style="width:100px" placeholder="留空"/></label>
+            <button id="裁">裁决</button>
+          </div>
+          <pre class="报" id="裁判"></pre>
         </div>
       </section>
 
@@ -57,7 +67,19 @@
   document.getElementById("报").textContent = JSON.stringify(s, null, 2);
   document.getElementById("存").onclick = async () => {
     const body = { 金额容差分: document.getElementById("容差").value, 站名: document.getElementById("站名").value };
-    document.getElementById("报").textContent = JSON.stringify(await post("/api/轨规", body), null, 2);
+    const r = await post("/api/轨规", body);
+    document.getElementById("报").textContent = JSON.stringify(r, null, 2);
+  };
+  document.getElementById("裁").onclick = async () => {
+    const 容 = document.getElementById("容").value.trim();
+    const q = new URLSearchParams({
+      业务键: document.getElementById("键").value,
+      左金额分: document.getElementById("左").value,
+      右金额分: document.getElementById("右").value,
+    });
+    if (容 !== "") q.set("容差分", 容);
+    const r = await fetch("/api/容差裁决?" + q.toString());
+    document.getElementById("裁判").textContent = JSON.stringify(await r.json(), null, 2);
   };
 })();
 </script>
